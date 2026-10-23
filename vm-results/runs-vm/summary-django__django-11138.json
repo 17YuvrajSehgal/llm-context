@@ -1,0 +1,11 @@
+{
+  "tasks": [
+    {
+      "task": "django__django-11138",
+      "skipped": "phase 1 never reached the checkpoint (unparseable_replies)",
+      "rows": [],
+      "notes": []
+    }
+  ],
+  "deltas": []
+}

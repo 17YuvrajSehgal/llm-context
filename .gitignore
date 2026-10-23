@@ -1,2 +1,22 @@
-.idea
-relevant-research-papers
+__pycache__/
+*.pyc
+.venv/
+runs/
+data/swebench_verified.jsonl
+data/*.diff
+
+# IDE
+.idea/
+
+# Third-party PDFs: copyrighted, and 52 MB. Cite them, do not redistribute.
+relevant-research-papers/
+
+# Correspondence drafts stay local
+reply-mahsa.md
+
+# Archives are redundant; the .jsonl and .json results beside them are tracked
+vm-results/*.tgz
+
+# Raw traces and kernel archives live on the collection VM, not in git.
+# Anchored to the repo root so the merged results under vm-results/ are kept.
+/runs-*/

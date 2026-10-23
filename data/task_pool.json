@@ -1,0 +1,218 @@
+{
+  "dataset": "princeton-nlp/SWE-bench_Verified",
+  "considered": 500,
+  "eligible": 65,
+  "dropped": {
+    "patch touches one file": 241,
+    "quickest tier": 194
+  },
+  "selected": [
+    {
+      "instance_id": "sphinx-doc__sphinx-7590",
+      "repo": "sphinx-doc/sphinx",
+      "files_touched": 3,
+      "files": [
+        "sphinx/domains/c.py",
+        "sphinx/domains/cpp.py",
+        "sphinx/util/cfamily.py"
+      ],
+      "patch_lines": 232,
+      "n_fail_to_pass": 1,
+      "n_pass_to_pass": 24,
+      "problem_chars": 600,
+      "difficulty": ">4 hours",
+      "difficulty_rank": 3
+    },
+    {
+      "instance_id": "pydata__xarray-6992",
+      "repo": "pydata/xarray",
+      "files_touched": 2,
+      "files": [
+        "xarray/core/dataset.py",
+        "xarray/core/indexes.py"
+      ],
+      "patch_lines": 202,
+      "n_fail_to_pass": 12,
+      "n_pass_to_pass": 945,
+      "problem_chars": 1562,
+      "difficulty": ">4 hours",
+      "difficulty_rank": 3
+    },
+    {
+      "instance_id": "sympy__sympy-16597",
+      "repo": "sympy/sympy",
+      "files_touched": 6,
+      "files": [
+        "sympy/assumptions/ask.py",
+        "sympy/assumptions/ask_generated.py",
+        "sympy/core/assumptions.py",
+        "sympy/core/power.py",
+        "sympy/printing/tree.py",
+        "sympy/tensor/indexed.py"
+      ],
+      "patch_lines": 228,
+      "n_fail_to_pass": 3,
+      "n_pass_to_pass": 74,
+      "problem_chars": 611,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "pylint-dev__pylint-4551",
+      "repo": "pylint-dev/pylint",
+      "files_touched": 4,
+      "files": [
+        "pylint/pyreverse/diagrams.py",
+        "pylint/pyreverse/inspector.py",
+        "pylint/pyreverse/utils.py",
+        "pylint/pyreverse/writer.py"
+      ],
+      "patch_lines": 187,
+      "n_fail_to_pass": 10,
+      "n_pass_to_pass": 0,
+      "problem_chars": 777,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "astropy__astropy-13398",
+      "repo": "astropy/astropy",
+      "files_touched": 4,
+      "files": [
+        "astropy/coordinates/builtin_frames/__init__.py",
+        "astropy/coordinates/builtin_frames/intermediate_rotation_transforms.py",
+        "astropy/coordinates/builtin_frames/itrs.py",
+        "astropy/coordinates/builtin_frames/itrs_observed_transforms.py"
+      ],
+      "patch_lines": 298,
+      "n_fail_to_pass": 4,
+      "n_pass_to_pass": 68,
+      "problem_chars": 5323,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "django__django-16263",
+      "repo": "django/django",
+      "files_touched": 4,
+      "files": [
+        "django/db/models/expressions.py",
+        "django/db/models/query_utils.py",
+        "django/db/models/sql/query.py",
+        "django/db/models/sql/where.py"
+      ],
+      "patch_lines": 227,
+      "n_fail_to_pass": 3,
+      "n_pass_to_pass": 100,
+      "problem_chars": 656,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "django__django-15629",
+      "repo": "django/django",
+      "files_touched": 4,
+      "files": [
+        "django/db/backends/base/schema.py",
+        "django/db/backends/oracle/features.py",
+        "django/db/backends/sqlite3/schema.py",
+        "django/db/models/fields/related.py"
+      ],
+      "patch_lines": 102,
+      "n_fail_to_pass": 2,
+      "n_pass_to_pass": 115,
+      "problem_chars": 2395,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "django__django-11138",
+      "repo": "django/django",
+      "files_touched": 4,
+      "files": [
+        "django/db/backends/mysql/operations.py",
+        "django/db/backends/oracle/operations.py",
+        "django/db/backends/sqlite3/base.py",
+        "django/db/backends/sqlite3/operations.py"
+      ],
+      "patch_lines": 157,
+      "n_fail_to_pass": 1,
+      "n_pass_to_pass": 73,
+      "problem_chars": 3135,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-9461",
+      "repo": "sphinx-doc/sphinx",
+      "files_touched": 3,
+      "files": [
+        "sphinx/domains/python.py",
+        "sphinx/ext/autodoc/__init__.py",
+        "sphinx/util/inspect.py"
+      ],
+      "patch_lines": 117,
+      "n_fail_to_pass": 3,
+      "n_pass_to_pass": 59,
+      "problem_chars": 2294,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "sympy__sympy-14248",
+      "repo": "sympy/sympy",
+      "files_touched": 3,
+      "files": [
+        "sympy/printing/latex.py",
+        "sympy/printing/pretty/pretty.py",
+        "sympy/printing/str.py"
+      ],
+      "patch_lines": 109,
+      "n_fail_to_pass": 2,
+      "n_pass_to_pass": 433,
+      "problem_chars": 583,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "pylint-dev__pylint-8898",
+      "repo": "pylint-dev/pylint",
+      "files_touched": 3,
+      "files": [
+        "pylint/config/argument.py",
+        "pylint/utils/__init__.py",
+        "pylint/utils/utils.py"
+      ],
+      "patch_lines": 76,
+      "n_fail_to_pass": 1,
+      "n_pass_to_pass": 18,
+      "problem_chars": 3455,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    },
+    {
+      "instance_id": "astropy__astropy-14369",
+      "repo": "astropy/astropy",
+      "files_touched": 2,
+      "files": [
+        "astropy/units/format/cds.py",
+        "astropy/units/format/cds_parsetab.py"
+      ],
+      "patch_lines": 105,
+      "n_fail_to_pass": 3,
+      "n_pass_to_pass": 732,
+      "problem_chars": 2597,
+      "difficulty": "1-4 hours",
+      "difficulty_rank": 2
+    }
+  ],
+  "repos": {
+    "sphinx-doc/sphinx": 2,
+    "pydata/xarray": 1,
+    "sympy/sympy": 2,
+    "pylint-dev/pylint": 2,
+    "astropy/astropy": 2,
+    "django/django": 3
+  },
+  "max_per_repo": 3
+}

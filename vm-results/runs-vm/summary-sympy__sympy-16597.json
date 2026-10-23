@@ -1,0 +1,11 @@
+{
+  "tasks": [
+    {
+      "task": "sympy__sympy-16597",
+      "skipped": "history too thin to match arms (672 tokens, need 1500)",
+      "rows": [],
+      "notes": []
+    }
+  ],
+  "deltas": []
+}

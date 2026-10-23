@@ -82,23 +82,39 @@ wall clock time. We always report the pass rate next to it.
 
 ---
 
-## 4. The two answers we test
+## 4. The two questions we answer
 
-We write these down before we look at any results.
+These are the supervisor's framing, adopted on 2026-10-21. They are broader and better than what this
+section said before, which asked only whether the agent goes back for the one fact we deleted.
 
-|          | Idea                                          | What we would see                               | What it means                                                                                     |
-|----------|-----------------------------------------------|-------------------------------------------------|---------------------------------------------------------------------------------------------------|
-| H_forget | Agents repeat work because they lost the fact | Agents re-learn the fact far more in C2 than C1 | Memory work is aimed right. Our per-kind numbers then say what to keep.                           |
-| H_search | Agents repeat work no matter what they know   | Re-learn rates in C1 and C2 are about the same  | Memory work is aimed wrong. It also explains why the recall tool in arXiv:2609.20804 went unused. |
+**RQ1. Does deleting context change behaviour at all?** Not one number. A vector: which tools get called
+and how often, steps, tokens, tool time, whether the task was solved, and whether it broke tests that used
+to pass. Needs a significance test, not an eyeball.
 
-Both answers make a paper. That matters a lot with 3 days left. There is no result here that wastes the submission.
+**RQ2. If it changes, where?** In the tools it calls, in task failure, in cost, or in which kind of fact was
+lost. Two questions is enough for a NIER paper.
 
-Two more ideas we write down now:
+Both answers make a paper. There is no result here that wastes the submission.
 
-- H_kind. The effect is strong for some kinds of fact and absent for others. This is the most likely outcome. We expect
-  `F_neg` and `F_test` to cost the most.
-- H_negative. Some deletions make the agent do better, because there is less to distract it. SWE-MeM's 256K result says
-  this can happen. Negative debt is a result, not a bug. Say so in the paper.
+### What we used to test, and why it was demoted
+
+The old primary measure asked whether the agent goes back and re-acquires the exact fact we deleted. The
+pilot killed it. In the first complete four-arm run the agent went back for the location in **both** arms,
+including the one where the fact was still in its context. The signal does not measure "went back because it
+forgot". It measures "went back", full stop.
+
+That is itself a finding, and it lines up with arXiv:2609.20804, where agents ignored a perfect recall tool
+and re-read instead. So we keep it as a secondary measure and report it, but the cost vector in RQ1 is the
+primary.
+
+### Written down before looking at results
+
+- H_kind. The effect is strong for some kinds of fact and absent for others. The most likely outcome. We
+  expect `F_neg` and `F_test` to cost the most.
+- H_negative. Some deletions make the agent do better, because there is less to distract it. SWE-MeM's 256K
+  result says this can happen. Negative debt is a result, not a bug. Say so in the paper.
+- H_noise. The run-to-run variation swamps the effect. This is why every arm runs more than once and why
+  every mean is reported with its spread. An effect smaller than the variation is not an effect.
 
 ---
 
@@ -164,23 +180,55 @@ Read it as three stages. Let the agent work until it hits the checkpoint. Build 
 memory that differ by one fact and nothing else. Resume all four and see which one has to go back
 for the fact.
 
-**Step 1. Let the agent work.** Run it on the task until a fixed stopping point: the first failing test that happens
-after at least one file edit. Save the full trace and the repo state. Call this point ψ. Then pull out the facts it
-learned, with the source of each one.
+**Step 1. Let the agent work.** Run it until a fixed stopping point. Save the full trace and the repo state. Call this
+point ψ. Then pull out the facts it learned, with the source of each one.
+
+The stopping point needs three things. A failing test. At least 8 tool calls. And an edit if one has happened within the
+first 18 calls. The first two are always required. The edit is preferred but not required, and that detail was learned
+the hard way. Across four phase-1 runs on the same Django task the same agent did 3 edits with no test, then an edit
+after a test, then six edits with no re-test, then 26 steps of pure investigation with no edit at all. Any rule that
+demands a particular order, or demands an edit, throws away whole runs. A checkpoint with no edit is still a good one:
+the agent has investigated and reproduced the bug, and the repo is untouched, so the arms differ by context alone with
+no half-finished fix in the way. The only cost is that `F_neg` facts need a tried-and-failed fix, so they appear only on
+tasks where the agent edited before the checkpoint.
 
 **Step 2. Resume four ways.** All four start from the same ψ. Same repo, same tools, same task text, same steps left.
 All four get the same token budget, within 2%. When we delete something we trim old unrelated history to make the totals
 match. We do not just send a shorter prompt.
 
-| Arm         | What we do                                                                           | Why                                         |
-|-------------|--------------------------------------------------------------------------------------|---------------------------------------------|
-| C0 Continue | No interruption. The agent just keeps going.                                         | Baseline cost with no loss                  |
-| C1 Keep     | Cut the context down, but keep fact `f` in it                                        | The "remembered" case                       |
-| C2 Delete   | Same as C1, but `f` is removed and scrubbed. Budget made equal again.                | The "forgot" case                           |
-| C3 Placebo  | Delete a chunk of the same size. It holds a fact the agent never needed again in C0. | Checks we are not just damaging the context |
+| Arm         | What we do                                                      | Why                                         |
+|-------------|-----------------------------------------------------------------|---------------------------------------------|
+| C0 Continue | No interruption. The agent just keeps going.                    | Baseline cost with no loss                  |
+| C1 Keep     | Cut the context to the budget, but keep fact `f` in it          | The "remembered" case                       |
+| C2 Delete   | Same as C1, but a **needed** `f` is removed and scrubbed        | The "forgot" case, and the real test        |
+| C3 Placebo  | Same, but an **irrelevant** fact is removed instead             | Checks we are not just damaging the context |
+
+Every arm runs more than once, because the agent is stochastic. Runs are averaged before the arms are
+compared, and every mean is reported with its run-to-run spread.
 
 C3 is what makes this solid, and it costs almost nothing. If C3 behaves like C1, our deletion is clean. If C3 behaves
 like C2, then we are measuring general context damage, and we have to say that in the paper.
+
+### Needed and irrelevant: the ground truth
+
+This is the most important fix the pilot forced, and it came from the supervisor's review.
+
+Deleting an arbitrary fact does not test anything. If the agent was never going to use it, nothing can
+happen. That is exactly what the first pilot did: it deleted a fact about `postgresql/operations.py` while
+the agent was working in `sqlite3/`. The deletion cost nothing it could attribute, and the placebo arm cost
+about the same, so the observation was unusable.
+
+Every SWE-bench task ships the patch that fixes the bug, which names the files that must change. That is a
+ground truth for free, and it comes from the benchmark rather than from our agent's own behaviour, so using
+it to choose what to delete is not circular.
+
+- **Needed**: the fact is about a file the official patch changes. A failing test is always needed, since it
+  is the thing that has to pass.
+- **Irrelevant**: it is not.
+
+The target comes from the needed pile and the placebo from the irrelevant pile. On the pilot's Django trace
+that split 8 needed against 9 irrelevant across 4 files. A task where nothing is needed is skipped with that
+reason rather than producing a run that cannot answer anything.
 
 Each pair of arms answers a different question. Only the first one is the paper's result.
 
@@ -208,12 +256,34 @@ flowchart LR
     class Q1,Q2,Q3 ask
 ```
 
-C1 is in all three comparisons. That is why it is the reference the other arms are budget-matched
-against.
+C1 is in all three comparisons, so it is the reference. All three arms are built from one block set
+and scrub inside it, so any pair differs by exactly the lines removed.
 
 **Leak check. Required.** After scrubbing, search the whole resume context for anything that gives the fact away. File
 path, symbol name, test name, line number, assertion text. If the fact still shows up anywhere, drop it from the sample.
 Log how often this happens.
+
+Identifiers match on whole tokens, not plain substrings. Searching for `charge` as a substring also hits `test_charge`,
+which marked almost every fact as leaked and would have emptied the sample. Over-detecting a leak only costs sample
+size. Missing one leaves the fact visible in C2, which pushes the result toward no effect, so the check errs toward
+dropping facts.
+
+### Two method choices to state in the paper
+
+**The task's tests are applied before the agent starts.** The target test lives in the task's test patch, so at the base
+commit it does not exist. Without it there is no failing test and the checkpoint never fires. This does show the agent
+the expected behaviour. Every arm gets the identical setup, so the comparison holds. Only absolute pass rates are
+affected, and we claim nothing about those.
+
+**The resume budget is 60% of the measured trace, not a fixed token count.** A fixed floor of 400 tokens exceeded the
+whole history on a short trace and silently dropped every fact.
+
+**All three arms are built from one block set and scrub inside it. They are not padded back to equal length.** Chasing
+an equal token count was the wrong goal: scrubbing shrinks an arm, so either more blocks fit or the matcher pads it with
+old history, and either way that arm gains content the kept arm never had. Two things changed instead of one, and the
+placebo moved further than the real manipulation. Removing three lines and leaving that arm about 1% shorter is a far
+cleaner manipulation. The remaining difference is reported, and a fact worth more than 5% of the context is dropped as
+not comparable.
 
 ---
 
@@ -231,11 +301,26 @@ timestamp.
 trace must reach 8 or more tool calls with at least one failing test. Drop single-file quick fixes. They cannot create
 recovery work.
 
-**Size of the run.** 10 tasks. 2 facts per task. C1 and C2 on each fact. 2 trials each. Plus C0 and C3 at 2 trials. That
-is about 120 resume runs. Resume runs start at ψ, so they are much shorter than full runs.
+**Size of the run.** 8 tasks. 1 fact per task. 1 trial. Five runs per task: phase 1, C0, C1, C2, C3. That is 40 runs.
 
-**If it costs too much, cut in this order.** Drop the 3rd trial. Then go to 1 fact per task. Then 8 tasks. Then drop the
-`F_dep` kind. Write every cut in the paper. Never cut C3 or the leak check.
+**Measured on 2026-10-21, one Django task on Claude Sonnet through the Claude Code CLI.** These are real numbers, not
+estimates:
+
+| What | Measured |
+|------|----------|
+| Phase 1 to the checkpoint | 19 tool calls, 1.32M prompt tokens |
+| One uncapped resume arm | 24-26 steps, 2.1-2.9M prompt tokens, 19-26 min, about $8 |
+| Median time per model call | 28-39 seconds |
+| Average prompt per call, C0 | 117,000 tokens |
+| Fixed Claude Code preamble per call | about 15,000 tokens |
+
+**Resume arms are capped at 16 steps.** Token spend grows with the square of the step count, because every step resends
+the whole history. Going from 26 steps to 16 scales cost and time by about 0.38, which turns a 22-hour, $490 study into
+a 5.6-hour, $124 one, or 1.4 hours across 4 parallel jobs. The cost is the success guardrail on long tasks, not the
+re-acquisition signal, which lands in the first few steps. Say so in Limitations.
+
+**If it costs too much, cut in this order.** Lower the resume step cap. Then 6 tasks. Then drop the `F_dep` kind. Write
+every cut in the paper. Never cut C3 or the leak check.
 
 ---
 
@@ -251,10 +336,18 @@ log and git state.
 - **Repeated failed fix.** A new edit whose result matches an earlier edit that was followed by a failing test. Compare
   normalised diffs.
 - **Got the fact again.** Yes or no, from the re-learn signal. Plus `R(f)` in tokens and calls.
-- **Pass rate.** Did the gold tests pass. Report this next to every cost number. An agent that saves tokens by giving up
-  early is not efficient.
+- **Pass rate, both halves.** The failing tests must pass and the roughly 70 tests that already passed must still pass.
+  Report it next to every cost number. Without the second half an agent could look cheap and resolved while having
+  broken seventy other tests, and the guardrail would be blind to the exact behaviour it exists to catch. The regression
+  suite runs as one command, so it costs one test run rather than seventy.
 - **Three token counts, kept apart.** Tokens in the live prompt. Tokens stored outside the prompt. Total input plus
   output for the whole task. Use the real tokenizer. Never estimate from character counts.
+- **Model time and tool time, kept apart.** Wall clock on its own is not interpretable: every step starts a fresh CLI
+  process and may sit behind a rate limit, so it measures our plumbing as much as the agent. Tool execution time is
+  clean and is the part that says what the work cost. Measured on a real run, a file read took 13 ms and a test run
+  took 362 ms.
+- **Which tools, and how many times.** The tool mix is part of RQ1. A behaviour change can show up as the same cost
+  spent on different tools.
 
 Use an LLM to check our labels only as a side check. Take a sample. Have a human look at about 50 cases. Report how
 often they agree. arXiv:2609.20804 did this kind of trace labelling and got a Cohen's kappa of 0.929, which is an
@@ -265,10 +358,19 @@ numbers.
 
 ## 8. How we analyse it
 
-- **Main test.** McNemar's test on whether the agent got the fact again. It compares paired yes/no outcomes, C1 against
-  C2 on the same fact. Two-sided exact. arXiv:2609.20804 uses McNemar on paired task outcomes, so this follows them.
-- **Cost effect.** Bootstrap confidence intervals on the paired `Δ(f)` values, grouped by task. Report effect sizes, not
-  just p-values. Say plainly when something is statistically real but too small to matter in practice.
+- **The order of operations matters.** Average over runs first, then difference the arms, then bootstrap over tasks.
+  Tasks are the resampling unit, not facts: two facts from one task share a repo, a checkpoint and an agent run, so
+  treating them as independent would make the interval look tighter than the evidence supports.
+- **Cost effect.** Bootstrap confidence intervals on the paired differences, resampled by task. Report effect sizes,
+  not just p-values. Say plainly when something is statistically real but too small to matter in practice.
+- **Variability first.** Report the run-to-run spread inside each arm next to the between-arm difference. If the
+  difference is smaller than the spread, there is no effect to report, and the paper says so.
+- **The placebo contrast.** The same differences for C3 against C1. This is what separates "losing this fact hurt" from
+  "losing anything that size hurt".
+- **Secondary test.** McNemar's exact test on whether the agent got the fact again, C1 against C2 on the same fact,
+  with a fact counted as re-learned when it happened in most of its runs. Two-sided exact, because only the pairs that
+  disagree carry information. arXiv:2609.20804 uses McNemar on paired task outcomes, so this follows them. Demoted to
+  secondary for the reason in section 4.
 - **Split by fact kind.** The `F_loc` / `F_test` / `F_dep` / `F_neg` breakdown is the part engineers will use. It says
   which facts are expensive to lose.
 - **Placebo check.** Compare C3 against C1 and C2. Shows the deletion is specific.
@@ -333,6 +435,12 @@ drop. Say the isolation is weaker in Limitations.
 
 **Fallback C. The runs do not finish.** Report fewer tasks. Give the real N. Widen the intervals. Never make up numbers,
 never extrapolate, never pass the pilot off as the full study. A small honest result beats a big method with no data.
+
+**Fallback E. The usage cap stalls the runs.** The subscription has a rolling five-hour cap and overage is turned off at
+org level, so a call past the cap fails outright rather than slowing down. One task uses 5 to 7 million prompt tokens
+across its five runs, so the full set will hit the cap. Every arm result is written to disk as it lands and a failed arm
+is recorded rather than thrown away, so a stalled run resumes without losing what it already paid for. If the stalls
+cost more than an hour, switch to an API key. That buys throughput, not cheaper tokens: the price per token is the same.
 
 **Fallback D. Not ready by Friday.** Do not submit a method-only paper. Move it to the research track with the full
 design from section 12. That is where the big version belongs anyway.

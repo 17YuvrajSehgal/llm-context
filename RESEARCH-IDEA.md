@@ -1,13 +1,12 @@
 # Does Forgetting Cause Rework? A Study of Context Loss in Coding Agents
 
-Paper target: ICSE 2027 NIER.
+**Paper target: undecided. The ICSE 2027 NIER deadline (23 Oct 2026) passed without a submission.**
+The supervisor offered FSE-NIER or the agentic-AI workshop. Pick one before writing, because the page
+limit and the required sections differ. Everything below assumes a short paper of roughly four pages
+with an early-results section.
 
-Deadline: Friday 23 Oct 2026, 23:59:59 AoE (UTC−12). Submit at https://icse2027-nier.hotcrp.com/
-
-Rules: 4 pages of main text. Figures, tables and appendices count in those 4 pages. One extra page for references only.
-IEEE conference template. Double-anonymous. Must have a section called "Future Plans".
-
-This is the plan to follow. Written 2026-10-20. If you need to change it, use the fallbacks in section 11.
+Written 2026-10-20, last reconciled with the code and the data on 2026-10-23. Section 16 is the current
+status: what works, what does not, and what blocks the next campaign. Read that first.
 
 ---
 
@@ -74,9 +73,10 @@ and output that taught it. Four kinds:
 
 **Re-learn cost** `R(f)`. Tokens and tool calls from the restart until the agent gets `f` back.
 
-**Deletion effect** `Δ(f)`. This is the number we care about. It is `cost(C2) − cost(C1)`. That is the cost of resuming
-without the fact minus the cost of resuming with it, at the same token budget. We measure it in tokens, tool calls and
-wall clock time. We always report the pass rate next to it.
+**Deletion effect** `Δ(f)`. `cost(C2) − cost(C1)`: resuming without the fact minus resuming with it, from the same
+block set. Not at an equal token count; see section 5 for why chasing that was wrong. Measured in tokens, tool calls
+and tool time, with the pass rate reported next to it and the share of the context the fact occupied recorded per
+pair.
 
 **Memory debt.** The total of `Δ` across facts. We keep this as a casual name. It is not our novelty claim.
 
@@ -126,7 +126,7 @@ We call it fact removal. We delete one fact and see what it costs.
 flowchart TD
     A["SWE-bench Verified task<br/>multi-file, multi-step only"]
     B["Agent works on it<br/>every tool call logged<br/>tracelog.py"]
-    C{"First failing test<br/>after an edit?"}
+    C{"Failing test seen,<br/>8+ calls, edit if any?"}
     D["Checkpoint psi<br/>trace and repo state saved"]
     E["Pull out what the agent learned<br/>F_loc, F_test, F_dep, F_neg<br/>facts.py"]
     F["Pick one target fact f"]
@@ -135,7 +135,7 @@ flowchart TD
     X["Drop this fact<br/>log the drop rate"]
     R["Resume four ways"]
 
-    subgraph ARMS["Four arms, one checkpoint, equal token budget"]
+    subgraph ARMS["Four arms, one checkpoint, one shared block set"]
         C0["C0 Continue<br/>no interruption at all"]
         C1["C1 Keep<br/>f stays in context"]
         C2["C2 Delete<br/>f scrubbed out"]
@@ -192,9 +192,9 @@ the agent has investigated and reproduced the bug, and the repo is untouched, so
 no half-finished fix in the way. The only cost is that `F_neg` facts need a tried-and-failed fix, so they appear only on
 tasks where the agent edited before the checkpoint.
 
-**Step 2. Resume four ways.** All four start from the same ψ. Same repo, same tools, same task text, same steps left.
-All four get the same token budget, within 2%. When we delete something we trim old unrelated history to make the totals
-match. We do not just send a shorter prompt.
+**Step 2. Resume four ways.** All four start from the same ψ: same repo, same tools, same task text, same steps left,
+and the same set of history blocks. Each arm scrubs inside that shared set, so a pair differs by exactly the lines
+removed. The arms are deliberately **not** padded back to an equal token count.
 
 | Arm         | What we do                                                      | Why                                         |
 |-------------|-----------------------------------------------------------------|---------------------------------------------|
@@ -282,8 +282,9 @@ whole history on a short trace and silently dropped every fact.
 an equal token count was the wrong goal: scrubbing shrinks an arm, so either more blocks fit or the matcher pads it with
 old history, and either way that arm gains content the kept arm never had. Two things changed instead of one, and the
 placebo moved further than the real manipulation. Removing three lines and leaving that arm about 1% shorter is a far
-cleaner manipulation. The remaining difference is reported, and a fact worth more than 5% of the context is dropped as
-not comparable.
+cleaner manipulation. The remaining difference is reported per pair, and a fact worth more than **25%** of the context
+is dropped as not comparable. The limit started at 5%, set from a toy fixture; real traces run 6% to 22% and a 5%
+limit rejected almost everything.
 
 ---
 
@@ -293,15 +294,20 @@ not comparable.
 tokenizer, context limit and every setting. More models go in Future Plans. arXiv:2609.20804 already covers how results
 change with model strength, and we cannot afford to redo it.
 
-**Harness.** One harness only. Reuse something that exists, like OpenHands or a thin ReAct loop. Do not build a harness.
-Add logging for each call: tool name, arguments, output hash, the content hash of the file it touched, token counts,
-timestamp.
+**Harness.** A thin ReAct loop of our own (`harness.py`), not OpenHands. The experiment needs to stop at an exact
+checkpoint, save state, and restart from a context we built by hand; those are a few lines in our own loop and a patch
+set in someone else's. Five tools: search, read, edit, run tests, finish. The model sits behind a seam, and
+`clicode.py` drives Claude Sonnet through the Claude Code CLI with all of its own tools switched off, so it only
+decides and our code does the work. Every call logs tool name, arguments, output hash, the content hash of the file it
+touched, real token counts from the provider, timestamps, and the kernel cost of that call.
 
 **Tasks.** SWE-bench Verified. Keep only multi-step ones. The real patch must touch 2 or more files, or the first-run
 trace must reach 8 or more tool calls with at least one failing test. Drop single-file quick fixes. They cannot create
 recovery work.
 
-**Size of the run.** 8 tasks. 1 fact per task. 1 trial. Five runs per task: phase 1, C0, C1, C2, C3. That is 40 runs.
+**Size of the run.** 1 fact per task. Three runs of each arm, one of C0: 11 runs per task
+(`--trials 3 --c0-trials 1`). The target is **40 usable pairs**, which the measured spread says is what 80% power
+needs. See section 16 for why the current pool cannot supply that.
 
 **Measured on 2026-10-21, one Django task on Claude Sonnet through the Claude Code CLI.** These are real numbers, not
 estimates:
@@ -314,7 +320,7 @@ estimates:
 | Average prompt per call, C0 | 117,000 tokens |
 | Fixed Claude Code preamble per call | about 15,000 tokens |
 
-**Resume arms are capped at 16 steps.** Token spend grows with the square of the step count, because every step resends
+**Resume arms are capped at 14 steps** (`--resume-steps 14`, phase 1 at 24). Token spend grows with the square of the step count, because every step resends
 the whole history. Going from 26 steps to 16 scales cost and time by about 0.38, which turns a 22-hour, $490 study into
 a 5.6-hour, $124 one, or 1.4 hours across 4 parallel jobs. The cost is the success guardrail on long tasks, not the
 re-acquisition signal, which lands in the first few steps. Say so in Limitations.
@@ -410,19 +416,31 @@ Do not claim we invented external memory, context compression, saved agent state
 
 ---
 
-## 10. Schedule
+## 10. What happened, and what is left
 
-The deadline is AoE, which is UTC−12. The real wall is about Saturday 24 Oct, 12:00 UTC. Do not plan to use that extra
-time.
+The original four-day schedule aimed at ICSE NIER on 23 Oct and was not met. Keeping the history because
+every slip has a cause worth remembering.
 
-| When                    | Work                                                                                                                                                                   | Gate                                                                                     |
-|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
-| Tue 20 Oct, rest of day | Pick the model and harness. Add the logging, with content hashes and real token counts. Pick and check the task pool. Write the fact extraction and re-learn signals.  | Logs come out readable, with hashes                                                      |
-| Wed 21 Oct              | Pilot on 3 tasks, all four arms. Check that facts extract cleanly, the leak check passes, the re-learn signal fires, and budgets match within 2%. Fix the measurement. | Gate: does deleting a fact produce any re-learn signal at all? If not, go to fallback A. |
-| Thu 22 Oct              | Full run, about 120 resume runs. Write sections 1 to 3 while the runs go. Build the figure shape from pilot data.                                                      | Sections 1 to 3 drafted by end of day                                                    |
-| Fri 23 Oct              | Analysis. Final figure. Write sections 4 and 5. Check the IEEE format. Sweep for author names. Anonymise the artifact repo. Submit.                                    | Submit by 23:59 your local time, not AoE                                                 |
+| When | What happened |
+|------|---------------|
+| Tue 20 Oct | Related work checked. Four of the planned contributions turned out to be taken; the causal question survived. Trace log and redundancy rules built. |
+| Wed 21 Oct | Fact extraction, resume contexts, agent loop, task pool, container workspace. First real runs. Supervisor review landed and reshaped the design: ground truth from the official patch, repeated runs, averages with spread. |
+| Thu 22 Oct | Kernel tracing added on the lab VM after the professor asked for it. LTTng and cgroup counters working with attribution. |
+| Fri 23 Oct | Arm construction rewritten after the placebo moved further than the real manipulation. Pilot campaigns run; yield problem found. ICSE deadline passed without a submission. |
 
----
+**What is left, in order.**
+
+1. Decide the venue. FSE-NIER or the agentic-AI workshop. This sets the page limit and the required sections.
+2. Redefine the checkpoint so it does not require a failing test. One line, and it is what unblocks the yield.
+   Verify on three tasks before committing to a campaign.
+3. Collect. Roughly 40 pairs at 11 runs each, two to three hours of machine time, under $300. An API key
+   removes the cap stalls.
+4. Re-collect the kernel set on whichever machine the behavioural set used, serially, so both halves of the
+   paper come from one configuration.
+5. Write. The kernel result leads; the forgetting question is the open one.
+
+Every campaign so far has found a flaw in the harness rather than an answer. That is what a pilot is for, but
+it is the reason step 2 gets verified on three tasks before fifty.
 
 ## 11. If things go wrong
 
@@ -506,3 +524,69 @@ Format mistakes can get the paper rejected without review.
    "a content hash".
 3. **Report what happened.** No effect, a negative effect, or an effect that depends on the fact kind. All three can be
    published. Made-up numbers cannot be fixed later.
+
+---
+
+## 16. Where this actually stands (2026-10-23)
+
+### The kernel measurement, which was added and is now the strongest result
+
+The professor asked for kernel traces during collection, so this is no longer future work. Two layers, both
+running on the collection VM:
+
+- **cgroup v2 counters around every tool call** (`ktrace.py`). CPU microseconds, block-layer bytes and page
+  faults, read either side of the call. Exact, no sampling.
+- **A full LTTng kernel trace per arm.** Every syscall and every tracepoint the kernel offers, including
+  `power_cpu_frequency` and `power_cpu_idle` so a later energy paper does not need a re-run. Zero discarded
+  events across the runs collected. Traces compress about 11x.
+
+Attribution was the hard part and is solved: each arm writes the container's and the harness's namespace
+inode numbers, the container's init pid and cgroup path, and clock anchors in all three domains. Our process
+renames itself `cfa-harness` so it is not another anonymous `python3`.
+
+**The result, from 345 tool calls across 4 projects on one machine:**
+
+| tool | median tokens | median CPU ms | share of tokens | share of CPU |
+|------|---------------|---------------|-----------------|--------------|
+| read | 47,868 | 138 | 34% | 9% |
+| search | 27,315 | 139 | 9% | 4% |
+| edit | 21,747 | 274 | 41% | 28% |
+| test | 24,765 | 1,028 | 15% | 60% |
+
+A test run costs about half the tokens of a file read but 7.5x the CPU. Reads come from page cache and barely
+touch the disk. So **counting wasted tokens and counting wasted machine work give different answers**, and the
+token-counting literature points at the wrong optimisation target. Nobody in that literature measures kernel
+cost.
+
+One honest limit: model wait is 93% of wall time, so this is a compute and energy result, not a latency one.
+
+### The forgetting question, which is not answered
+
+11 usable pairs, only 4 with a placebo. No detectable fact-specific effect: the paired token difference
+crosses zero and **the placebo moved further than the real manipulation**. The within-arm spread is
+comparable to the effect. This is the H_noise case.
+
+### What blocks the next campaign
+
+1. **Yield is about 28%, and 40 pairs is unreachable.** Only 65 of 500 SWE-bench Verified tasks pass
+   eligibility; 40 were attempted and 11 yielded. The dominant cause is that the checkpoint needs a *failing*
+   test, and on most tasks the agent simply fixes the bug and every test passes, so no checkpoint exists. That
+   also biases the sample toward tasks the agent finds hard. Redefining the checkpoint as "N calls with at
+   least one edit", regardless of test outcome, should roughly triple yield and remove the bias. It changes
+   what a checkpoint means, so it belongs in the method section.
+2. **The fact-kind mix is lopsided**: `F_neg` 48 rows against `F_test` 14 and `F_loc` 2. Any per-kind
+   breakdown is currently a statement about failed fixes.
+3. **The usage cap, not cost, limits throughput.** A campaign hits the rolling five-hour limit and calls fail
+   outright. An API key removes it.
+
+### Hardware, which cannot be mixed
+
+Runs from different machines do not pool: core count changes how a parallel test suite spends CPU. Every run
+header now records host, core count and kernel version, and `collect.py` refuses to merge rows from different
+setups rather than warning. `DATASETS.md` records which set came from where.
+
+### Code
+
+Thirteen modules, each with a runnable self-check; all pass offline. `collect.py` merges a campaign into one
+file plus a manifest, so analysis is `python analyse.py --results <dir>/all-results.jsonl`. Collection scripts
+are in `campaigns/`. Collected data is deliberately not in the repo.

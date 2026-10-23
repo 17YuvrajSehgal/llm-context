@@ -31,16 +31,23 @@ The campaign with the arms fixed. 5 usable pairs across 5 tasks.
 - **Kernel cost: usable, and the same machine as set 1**, so these two can be
   pooled for the machine-cost analysis.
 
-## 3. `runs-fast/` — 33 rows, 16 vCPU, 6 jobs in parallel, no traces
+## 3. `runs-main/` — 110 rows, 16 vCPU, 6 jobs in parallel, no LTTng
 
-Attempted behavioural campaign over 40 tasks. Low yield, one row per task,
-because fact selection rejected nearly everything:
+The campaign with the final arm construction. 11 usable pairs, 4 with a placebo.
 
-- the placebo pool collapsed when it was restricted to the chosen block set
-- the 5% context-share limit was set from a toy fixture; real shares were 6% to 22%
+- **Arm comparison: valid, and the only set where it is.** This is the one to
+  extend. No detectable fact-specific effect yet; the placebo moved further
+  than the real cut.
+- **Kernel numbers: present but contended.** cgroup counters are collected on
+  every run, not only traced ones, so these rows carry CPU and I/O figures.
+  Six jobs were competing for the same cores, so they must not be pooled with
+  the serial sets or read as clean per-call costs.
 
-**Treat as diagnostic, not data.** Different machine from sets 1 and 2, and the
-selection bugs mean the few arm rows are not a fair sample.
+## Deleted
+
+`runs-fast/` (33 rows) held nothing unique: pre-redesign arms, contended kernel
+numbers, no LTTng, and superseded by `runs-main`. Removed locally; the copy on
+the VM can go next time it is started.
 
 ## What has to be fixed before collecting again
 
@@ -50,3 +57,7 @@ selection bugs mean the few arm rows are not a fair sample.
    pair so the analysis can test whether it matters rather than gating on it.
 3. Decide the machine first and keep it. Mixing 4-core and 16-core runs in one
    analysis is not allowed.
+4. The clean per-call kernel numbers come only from sets 1 and 2, which ran
+   serially on 4 cores. If the behavioural set moves to a different machine,
+   re-collect a small serial traced set there so both halves of the paper come
+   from one configuration.
